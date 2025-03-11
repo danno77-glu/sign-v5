@@ -42,8 +42,8 @@ export const MobileSignatureCapture: React.FC = () => {
         [signatureField.label]: signature,
       };
 
-      // Insert into signed_documents  <-- CORRECTED THIS
-      const { error: insertError } = await supabase
+      // Insert into signed_documents
+      const { error: insertError } = await supabase  // Await the insert operation
         .from('signed_documents')
         .insert([
           {
