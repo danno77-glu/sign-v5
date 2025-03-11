@@ -148,7 +148,6 @@ export const SignDocument: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showQRCode, setShowQRCode] = useState(false);
-  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
   const pdfViewerRef = useRef<any>(null);
     const [signedDocument, setSignedDocument] = useState<any | null>(null); //using any temporarily
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -282,43 +281,34 @@ export const SignDocument: React.FC = () => {
         setActiveField(null);
     }
 
-    const handleNextField = () => {
-    if (template && currentFieldIndex < template.fields.length - 1) {
-        setCurrentFieldIndex(prevIndex => prevIndex + 1);
-        const nextPage = template.fields[currentFieldIndex + 1].position.pageNumber;
-        if (nextPage) {
-          setCurrentPage(nextPage);
-          if (pdfViewerRef.current) {
-            pdfViewerRef.current.scrollToPage(nextPage);
-          }
-        }
-    }
-  };
-
 // Subscribe to real-time changes on the signed_documents table
 useEffect(() => {
-    const channel = supabase
-        .channel('public:signed_documents')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signed_documents' }, async (payload) => {
-            // Check if the new record is for the current template and contains the active field
-            if (payload.new.template_id === templateId && activeField && payload.new.form_values && payload.new.form_values.hasOwnProperty(activeField)) {
-                // Update formValues with the new signature
-                setFormValues(prevFormValues => ({
-                    ...prevFormValues,
-                    ...payload.new.form_values,
-                }));
+  if (!templateId) return; // Don't subscribe if templateId is not available
 
-                // Close QR code modal and reset active field
-                setShowQRCode(false);
-                setActiveField(null);
-            }
-        })
-        .subscribe();
+  const channel = supabase
+    .channel('public:signed_documents')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signed_documents', filter: `template_id=eq.${templateId}` }, async (payload) => {
+      // Check if the new record is for the current template and contains the active field
+      if (payload.new.template_id === templateId && activeField && payload.new.form_values[activeField]) {
+          const updatedDocument = await getSignedDocument(payload.new.id);
+          if (updatedDocument) {
+              setSignedDocument(updatedDocument);
+              // Only update the specific field that changed
+              setFormValues(prevFormValues => ({
+                ...prevFormValues,
+                [activeField]: updatedDocument.form_values[activeField], // Update only the active field
+              }));
+              setShowQRCode(false); // Close the QR code modal
+              setActiveField(null);  // Reset the active field
+          }
+      }
+    })
+    .subscribe();
 
-    return () => {
-        supabase.removeChannel(channel);
-    };
-}, [templateId, activeField, formValues]); // Corrected dependencies
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [templateId, activeField]); // Depend on templateId and activeField
 
 
   if (!template || !pdfUrl) {
@@ -469,16 +459,7 @@ useEffect(() => {
                   </div>
 
                   <div className="mt-6 pt-6 border-t border-gray-200">
-                    {template && currentFieldIndex < template.fields.length -1 ? (
-                        <button
-                            onClick={handleNextField}
-                            disabled={!formValues[template.fields[currentFieldIndex].label]}
-                            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            Next Field
-                            <ArrowRightCircle className="w-4 h-4 ml-2" />
-                        </button>
-                    ) : (
+                    {template &&  (
                         <button
                         onClick={handleSave}
                         disabled={isSaving || success}
