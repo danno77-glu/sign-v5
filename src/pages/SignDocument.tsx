@@ -295,31 +295,36 @@ export const SignDocument: React.FC = () => {
     }
   };
 
-    // Subscribe to real-time changes on the signed_documents table
-    useEffect(() => {
-        const channel = supabase
+// Subscribe to real-time changes on the signed_documents table
+useEffect(() => {
+    const channel = supabase
         .channel('public:signed_documents')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signed_documents' }, async (payload) => {
             // Check if the new record is for the current template
             if (payload.new.template_id === templateId) {
                 const updatedDocument = await getSignedDocument(payload.new.id);
-                if(updatedDocument) {
+                if (updatedDocument) {
                     setSignedDocument(updatedDocument);
                     // Update formValues with the new signature, if present
                     setFormValues(prevFormValues => ({
                         ...prevFormValues,
                         ...updatedDocument.form_values,
                     }));
-                }
 
+                    // Close QR code modal and reset active field if the signature for the active field is received
+                    if (activeField && updatedDocument.form_values[activeField]) {
+                        setShowQRCode(false);
+                        setActiveField(null);
+                    }
+                }
             }
         })
-        .subscribe()
+        .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [templateId]);
+    return () => {
+        supabase.removeChannel(channel);
+    };
+}, [templateId, activeField]); // Add activeField as a dependency
 
 
   if (!template || !pdfUrl) {
