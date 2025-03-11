@@ -300,23 +300,17 @@ useEffect(() => {
     const channel = supabase
         .channel('public:signed_documents')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signed_documents' }, async (payload) => {
-            // Check if the new record is for the current template
-            if (payload.new.template_id === templateId) {
-                const updatedDocument = await getSignedDocument(payload.new.id);
-                if (updatedDocument) {
-                    setSignedDocument(updatedDocument);
-                    // Update formValues with the new signature, if present
-                    setFormValues(prevFormValues => ({
-                        ...prevFormValues,
-                        ...updatedDocument.form_values,
-                    }));
+            // Check if the new record is for the current template and contains the active field
+            if (payload.new.template_id === templateId && activeField && payload.new.form_values && payload.new.form_values.hasOwnProperty(activeField)) {
+                // Update formValues with the new signature
+                setFormValues(prevFormValues => ({
+                    ...prevFormValues,
+                    ...payload.new.form_values,
+                }));
 
-                    // Close QR code modal and reset active field if the signature for the active field is received
-                    if (activeField && updatedDocument.form_values[activeField]) {
-                        setShowQRCode(false);
-                        setActiveField(null);
-                    }
-                }
+                // Close QR code modal and reset active field
+                setShowQRCode(false);
+                setActiveField(null);
             }
         })
         .subscribe();
@@ -324,7 +318,7 @@ useEffect(() => {
     return () => {
         supabase.removeChannel(channel);
     };
-}, [templateId, activeField]); // Add activeField as a dependency
+}, [templateId, activeField, formValues]); // Corrected dependencies
 
 
   if (!template || !pdfUrl) {
