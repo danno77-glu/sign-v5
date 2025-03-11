@@ -148,6 +148,7 @@ export const SignDocument: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showQRCode, setShowQRCode] = useState(false);
+  const [currentFieldIndex, setCurrentFieldIndex] = useState(0);
   const pdfViewerRef = useRef<any>(null);
     const [signedDocument, setSignedDocument] = useState<any | null>(null); //using any temporarily
     const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -281,6 +282,19 @@ export const SignDocument: React.FC = () => {
         setActiveField(null);
     }
 
+    const handleNextField = () => {
+    if (template && currentFieldIndex < template.fields.length - 1) {
+        setCurrentFieldIndex(prevIndex => prevIndex + 1);
+        const nextPage = template.fields[currentFieldIndex + 1].position.pageNumber;
+        if (nextPage) {
+          setCurrentPage(nextPage);
+          if (pdfViewerRef.current) {
+            pdfViewerRef.current.scrollToPage(nextPage);
+          }
+        }
+    }
+  };
+
 // Subscribe to real-time changes on the signed_documents table
 useEffect(() => {
   if (!templateId) return; // Don't subscribe if templateId is not available
@@ -288,18 +302,18 @@ useEffect(() => {
   const channel = supabase
     .channel('public:signed_documents')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'signed_documents', filter: `template_id=eq.${templateId}` }, async (payload) => {
-      // Check if the new record is for the current template and contains the active field
-      if (payload.new.template_id === templateId && activeField && payload.new.form_values[activeField]) {
+      // Check if the new record is for the current template
+      if (payload.new.template_id === templateId) {
           const updatedDocument = await getSignedDocument(payload.new.id);
           if (updatedDocument) {
               setSignedDocument(updatedDocument);
-              // Only update the specific field that changed
+              // Update formValues with the new signature, if present
               setFormValues(prevFormValues => ({
                 ...prevFormValues,
-                [activeField]: updatedDocument.form_values[activeField], // Update only the active field
+                ...updatedDocument.form_values, // Correctly merge all form values
               }));
-              setShowQRCode(false); // Close the QR code modal
-              setActiveField(null);  // Reset the active field
+              // Close the QR code modal
+              setShowQRCode(false);
           }
       }
     })
@@ -308,7 +322,7 @@ useEffect(() => {
   return () => {
     supabase.removeChannel(channel);
   };
-}, [templateId, activeField]); // Depend on templateId and activeField
+}, [templateId]); // Only depend on templateId
 
 
   if (!template || !pdfUrl) {
