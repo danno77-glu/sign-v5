@@ -7,6 +7,7 @@ import { Navigation } from './components/Navigation';
 import { SignIn } from './components/SignIn';
 import { supabase } from './lib/supabase';
 import { ViewDocument } from './pages/ViewDocument';
+import { MobileSignatureCapture } from './pages/MobileSignatureCapture'; // Import new component
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -39,7 +40,7 @@ function App() {
     );
   }
 
-  const publicRoutes = ['/sign/:templateId', '/sign/:templateId/complete'];
+  const publicRoutes = ['/sign/:templateId', '/sign/:templateId/complete', '/sign/:templateId/mobile-signature']; // Added mobile-signature
   const isPublicRoute = publicRoutes.some(route => {
       const regex = new RegExp('^' + route.replace(/:\w+/g, '[^/]+') + '$');
       return regex.test(location.pathname);
@@ -59,6 +60,7 @@ function App() {
         <Route path="/sign/:templateId" element={<PublicSigningPage />} />
         <Route path="/sign/:templateId/complete" element={<SignDocument />} />
         <Route path="/view/:documentId" element={<ViewDocument />} />
+        <Route path="/sign/:templateId/mobile-signature" element={<MobileSignatureCapture />} /> {/* Add new route */}
       </Routes>
     </div>
   );
