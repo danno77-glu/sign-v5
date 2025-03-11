@@ -500,7 +500,7 @@ export const SignDocument: React.FC = () => {
                 <div className="bg-white rounded-lg p-6 max-w-sm w-full shadow-xl">
                   <h4 className="text-center text-gray-700 mb-4">Scan to Sign</h4>
                   <div className="flex justify-center">
-                    <QRCode value={`https://dmdsignhere.netlify.app/sign/${templateId}/complete`} size={192} level="H" />
+                    <QRCode value={`/sign/${templateId}/mobile-signature`} size={192} level="H" />
                   </div>
                   <button
                     onClick={() => {
